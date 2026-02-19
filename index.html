@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TITANSUPPS // ASCENSION</title>
+  
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,900;1,400&family=Space+Mono:wght@400;700&display=swap');
+
+    :root {
+      --void: #000000;
+      --bone: #EAEAEA;
+      --blood: #CC0000;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; cursor: crosshair; }
+
+    body {
+      background-color: var(--void);
+      color: var(--bone);
+      font-family: 'Space Mono', monospace;
+      overflow-x: hidden;
+      text-transform: uppercase;
+    }
+
+    /* TIPOGRAFÍA BRUTALISTA */
+    h1, h2, h3, h4, .display-text {
+      font-family: 'Playfair Display', serif;
+      text-transform: none;
+      font-weight: 900;
+      line-height: 0.8;
+      letter-spacing: -0.04em;
+    }
+
+    .hero-text {
+      font-size: clamp(3rem, 12vw, 10rem);
+      mix-blend-mode: difference;
+      z-index: 10;
+      position: relative;
+    }
+
+    /* ANIMACIONES DE REVELACIÓN */
+    .line-wrapper { overflow: hidden; display: block; line-height: 0.85; }
+    .line-text {
+      display: inline-block;
+      transform: translateY(110%) rotate(2deg); 
+      opacity: 0;
+      transform-origin: left;
+      transition: transform 1.2s cubic-bezier(0.19, 1, 0.22, 1), opacity 1.2s cubic-bezier(0.19, 1, 0.22, 1);
+    }
+    .line-text.reveal { transform: translateY(0) rotate(0deg); opacity: 1; }
+
+    /* NAVEGACIÓN SPA */
+    nav {
+      display: flex;
+      justify-content: space-between;
+      padding: 2rem;
+      border-bottom: 1px solid var(--bone);
+      position: sticky;
+      top: 0;
+      background-color: var(--void);
+      z-index: 100;
+    }
+
+    nav button, nav div[data-target] {
+      background: none; border: none; color: var(--bone);
+      font-family: inherit; font-weight: 700; text-transform: uppercase;
+      font-size: 0.8rem; letter-spacing: 0.1em;
+      cursor: crosshair;
+    }
+
+    nav button:hover { color: var(--void); background: var(--bone); }
+
+    /* BUSCADORES */
+    .search-input {
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid rgba(234, 234, 234, 0.3);
+      color: var(--bone);
+      font-family: inherit;
+      padding: 1rem 0;
+      width: 100%;
+      margin-bottom: 2rem;
+      font-size: 1.2rem;
+      outline: none;
+    }
+    .search-input:focus { border-bottom-color: var(--bone); }
+
+    /* GRID Y PRODUCTOS */
+    .grid-container { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1rem; padding: 2rem; }
+    
+    .product-card {
+      grid-column: span 4;
+      border: 1px solid var(--bone);
+      margin-bottom: 4rem;
+      opacity: 0;
+      transform: translateY(40px);
+      transition: transform 1s cubic-bezier(0.19, 1, 0.22, 1), opacity 1s ease;
+    }
+    
+    .product-card.revealed { opacity: 1; transform: translateY(0); }
+    .product-card:nth-child(2n) { grid-column: span 6; margin-top: 10vh; }
+
+    .canvas-container { width: 100%; height: 60vh; background-color: #111; overflow: hidden; }
+
+    .product-meta { padding: 1.5rem; display: flex; justify-content: space-between; align-items: flex-end; }
+
+    .category-tag {
+      font-size: 0.6rem;
+      border: 1px solid var(--bone);
+      padding: 2px 8px;
+      margin-bottom: 0.5rem;
+      display: inline-block;
+      opacity: 0.7;
+    }
+
+    /* VISTA DE DETALLES */
+    .details-layout { display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh; }
+    .details-image-box { border-right: 1px solid var(--bone); height: 100vh; position: sticky; top: 0; }
+    .details-content { padding: 8vw; display: flex; flex-direction: column; justify-content: center; }
+
+    /* UI COMPONENTS */
+    .btn-raw {
+      background: transparent; color: var(--bone); border: 1px solid var(--bone);
+      padding: 1rem 2rem; font-family: inherit; text-transform: uppercase; transition: all 0.2s;
+    }
+    .btn-raw:hover { background: var(--bone); color: var(--void); transform: scale(1.05); }
+
+    .input-raw {
+      background: transparent; border: none; border-bottom: 2px solid var(--bone);
+      color: var(--bone); font-family: 'Space Mono', monospace; font-size: 2rem;
+      padding: 1rem 0; width: 100%; margin-bottom: 2rem; border-radius: 0; outline: none;
+    }
+
+    .payload-item {
+      display: grid; grid-template-columns: 1fr 4fr 2fr 1fr;
+      padding: 2rem 0; border-bottom: 1px solid rgba(234, 234, 234, 0.2);
+    }
+
+    .view { display: none; }
+    .view.active { display: block; animation: fade 0.6s ease-out; }
+    @keyframes fade { from { opacity: 0; filter: blur(10px); } to { opacity: 1; filter: blur(0); } }
+
+    .noise-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 9000; opacity: 0.05;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    /* VISIBILIDAD BASADA EN AUTH (REFORZADA) */
+    .auth-only { display: none !important; }
+    body.is-logged-in .auth-only { display: inline-block !important; }
+    body.is-logged-in .guest-only { display: none !important; }
+    body.is-logged-out .auth-only { display: none !important; }
+    body.is-logged-out .guest-only { display: inline-block !important; }
+
+    /* ADMIN TOOLS */
+    .admin-controls {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .admin-list-item {
+      display: grid;
+      grid-template-columns: 0.5fr 1fr 2fr 1.5fr 1fr 2fr;
+      padding: 1.5rem 0;
+      border-bottom: 1px solid rgba(234, 234, 234, 0.1);
+      align-items: center;
+      font-size: 0.8rem;
+    }
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body class="is-logged-out">
+
+  <div class="noise-overlay"></div>
+
+  <nav id="main-nav">
+    <div data-target="home" style="font-weight: 900; font-size: 1.2rem; cursor: pointer;">TITANSUPPS.</div>
+    <div id="nav-actions" style="display: flex; gap: 2rem; align-items: center;">
+      <button data-target="home">THE ARSENAL</button>
+      <button id="nav-auth-btn" data-target="auth" class="guest-only">IDENTIFY</button>
+      <button id="nav-logout-btn" class="auth-only">SIGNOFF</button>
+      <button data-target="cart" class="auth-only">PAYLOAD (<span id="cart-count">0</span>)</button>
+    </div>
+  </nav>
+
+  <!-- VISTAS -->
+  <main id="view-home" class="view active">
+    <header style="padding: 15vh 2rem 5vh 2rem;">
+      <h1 class="hero-text" id="hero-title">ELEVATION THROUGH DISCIPLINE.</h1>
+      <div style="max-width: 600px; margin-top: 4rem;">
+        <input type="text" id="arsenal-search" class="search-input" placeholder="SEARCH ARSENAL INVENTORY // TYPE TO FILTER">
+      </div>
+    </header>
+    <section class="grid-container" id="arsenal-grid"></section>
+  </main>
+
+  <main id="view-details" class="view">
+    <div id="details-container"></div>
+  </main>
+
+  <main id="view-auth" class="view">
+    <section style="max-width: 600px; margin: 15vh auto; padding: 2rem;">
+      <h2 class="display-text" style="font-size: 4rem; margin-bottom: 2rem;">IDENTIFY.</h2>
+      <form id="auth-form">
+        <input type="email" id="auth-email-input" class="input-raw" placeholder="COORDINATES (EMAIL)" required>
+        <input type="password" id="auth-pwd-input" class="input-raw" placeholder="CIPHER (PASSWORD)" required>
+        <div style="display: flex; gap: 1rem;">
+          <button type="submit" class="btn-raw">ACCESS CORE</button>
+          <button type="button" class="btn-raw" id="btn-register">FORGE ALLIANCE</button>
+        </div>
+        <button type="button" class="link-raw" data-target="recover">LOST COORDINATES? (RECOVER)</button>
+      </form>
+    </section>
+  </main>
+
+  <main id="view-recover" class="view">
+    <section style="max-width: 600px; margin: 15vh auto; padding: 2rem;">
+      <h2 class="display-text" style="font-size: 4rem; margin-bottom: 2rem;">RECOVERY.</h2>
+      <form id="recover-form">
+        <input type="email" id="recover-email" class="input-raw" placeholder="COORDINATES (EMAIL)" required>
+        <button type="submit" class="btn-raw">SEND RECOVERY LINK</button>
+        <button type="button" class="link-raw" data-target="auth" style="display: block;">RETURN TO IDENTIFY</button>
+      </form>
+    </section>
+  </main>
+
+  <main id="view-reset" class="view">
+    <section style="max-width: 600px; margin: 15vh auto; padding: 2rem;">
+      <h2 class="display-text" style="font-size: 4rem; margin-bottom: 2rem;">NEW CIPHER.</h2>
+      <form id="reset-form">
+        <input type="password" id="new-password" class="input-raw" placeholder="NEW CIPHER" required>
+        <button type="submit" class="btn-raw">UPDATE ACCESS</button>
+      </form>
+    </section>
+  </main>
+
+  <main id="view-cart" class="view">
+    <section style="padding: 2rem; min-height: 80vh;">
+      <h2 class="display-text" style="font-size: clamp(3rem, 8vw, 6rem); border-bottom: 1px solid var(--bone); padding-bottom: 2rem;">YOUR PAYLOAD.</h2>
+      <div id="payload-manifest"></div>
+      <footer style="margin-top: 4rem; display: flex; justify-content: space-between; align-items: flex-end;">
+        <div>
+          <p style="opacity: 0.5;">TOTAL MASS</p>
+          <h3 id="payload-total" style="font-size: 4rem;">$0.00</h3>
+        </div>
+        <button class="btn-raw" style="font-size: 1.5rem; padding: 1.5rem 3rem;" onclick="alert('TRANSFER PROTOCOL INITIATED')">INITIATE TRANSFER</button>
+      </footer>
+    </section>
+  </main>
+
+  <main id="view-admin" class="view">
+    <section style="padding: 2rem;">
+      <h2 class="display-text" style="font-size: 5rem;">DIRECTORATE</h2>
+      <form id="admin-create-form" style="margin-top: 2rem; max-width: 800px; border-bottom: 1px solid rgba(234, 234, 234, 0.2); padding-bottom: 3rem;">
+        <h3 id="admin-form-mode" style="margin-bottom: 1rem; font-size: 1rem; color: var(--bone); opacity: 0.5;">MODE: NEW ASSET INJECTION</h3>
+        <input type="text" id="p-title" class="input-raw" placeholder="NOMENCLATURE" required>
+        <input type="text" id="p-form" class="input-raw" placeholder="FORMULATION CODE" required>
+        <input type="number" id="p-price" class="input-raw" placeholder="EXCHANGE VALUE" step="0.01" required>
+        <input type="text" id="p-image" class="input-raw" placeholder="ASSET URL (IMG)" required>
+        <label style="font-size: 0.7rem; opacity: 0.5; display: block; margin-bottom: 0.5rem;">CATEGORY ALLOCATION</label>
+        <select id="p-category" class="input-raw" style="font-size: 1.5rem;">
+          <option value="PROTEINS">PROTEINS</option>
+          <option value="AMINO ACIDS">AMINO ACIDS</option>
+          <option value="PRE-WORKOUTS">PRE-WORKOUTS</option>
+          <option value="FAT BURNERS">FAT BURNERS</option>
+          <option value="VITAMINS">VITAMINS</option>
+          <option value="GEAR">GEAR</option>
+        </select>
+        <div style="display: flex; gap: 1rem;">
+          <button type="submit" id="admin-submit-btn" class="btn-raw">EXECUTE INJECTION</button>
+          <button type="button" id="admin-cancel-btn" class="btn-raw" style="display: none; border-color: var(--blood); color: var(--blood);">ABORT EDIT</button>
+        </div>
+      </form>
+      <div style="margin-top: 4rem;">
+        <h3 class="display-text" style="font-size: 2rem; margin-bottom: 2rem;">ARSENAL MANAGEMENT</h3>
+        <div class="admin-controls">
+          <input type="text" id="admin-search" class="search-input" placeholder="SEARCH BY NAME OR CODE...">
+          <select id="admin-filter-category" class="search-input" style="padding: 0.85rem; background: var(--void);">
+            <option value="ALL">ALL CATEGORIES</option>
+            <option value="PROTEINS">PROTEINS</option>
+            <option value="AMINO ACIDS">AMINO ACIDS</option>
+            <option value="PRE-WORKOUTS">PRE-WORKOUTS</option>
+            <option value="FAT BURNERS">FAT BURNERS</option>
+            <option value="VITAMINS">VITAMINS</option>
+            <option value="GEAR">GEAR</option>
+          </select>
+        </div>
+        <div id="admin-inventory-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const supabaseUrl = 'https://vcxypktziwlpcdglsvys.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZjeHlwa3R6aXdscGNkZ2xzdnlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1MjI1NjgsImV4cCI6MjA4NzA5ODU2OH0.zdrFm-jEV0fHU8rMYoNYwdZugftq2r8rLBb0eDi4P5w';
+    const core = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+    let state = {
+      cart: JSON.parse(localStorage.getItem('titans_cart')) || [],
+      user: null,
+      products: [],
+      editingId: null,
+      arsenalQuery: '',
+      adminQuery: '',
+      adminCategoryFilter: 'ALL'
+    };
+
+    // --- ENRUTADOR ---
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-target]');
+      if (btn) {
+        let target = btn.getAttribute('data-target');
+        if (target === 'cart' && !state.user) {
+          alert("IDENTITY REQUIRED TO ACCESS PAYLOAD.");
+          target = 'auth';
+        }
+        switchView(target);
+      }
+    });
+
+    function switchView(target) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      const view = document.getElementById(`view-${target}`);
+      if (view) {
+        view.classList.add('active');
+        window.scrollTo(0,0);
+        if(target === 'cart' && state.user) renderPayload();
+        if(target === 'home') renderArsenalGrid();
+        if(target === 'admin') renderAdminInventory();
+      }
+    }
+
+    // --- WEBGL ENGINE ---
+    class BrutalShader {
+      constructor(container, url) {
+        this.container = container; this.url = url;
+        this.scene = new THREE.Scene();
+        this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        this.renderer = new THREE.WebGLRenderer({ alpha: true });
+        this.renderer.setSize(container.offsetWidth, container.offsetHeight);
+        container.appendChild(this.renderer.domElement);
+        this.loader = new THREE.TextureLoader();
+        this.loader.setCrossOrigin('anonymous');
+        this.init();
+      }
+      init() {
+        this.loader.load(this.url, (tex) => {
+          this.material = new THREE.ShaderMaterial({
+            uniforms: { uTex: { value: tex }, uTime: { value: 0 }, uHover: { value: 0 } },
+            vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position, 1.0); }`,
+            fragmentShader: `
+              uniform sampler2D uTex; uniform float uTime; uniform float uHover; varying vec2 vUv;
+              void main() {
+                vec2 uv = vUv;
+                uv.x += sin(uv.y * 15.0 + uTime) * 0.01 * uHover;
+                vec4 tex = texture2D(uTex, uv);
+                float gray = dot(tex.rgb, vec3(0.299, 0.587, 0.114));
+                gl_FragColor = vec4(mix(vec3(gray * 1.2), tex.rgb, uHover), 1.0);
+              }
+            `
+          });
+          this.mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.material);
+          this.scene.add(this.mesh);
+          this.container.onmouseenter = () => this.targetH = 1;
+          this.container.onmouseleave = () => this.targetH = 0;
+          this.animate();
+        }, undefined, () => {
+          this.container.innerHTML = "<div style='height:100%; display:flex; align-items:center; justify-content:center; color:var(--blood); font-size:0.7rem;'>SIGNAL LOST // 404</div>";
+        });
+      }
+      animate() {
+        requestAnimationFrame(() => this.animate());
+        if(this.material) {
+          this.material.uniforms.uTime.value += 0.05;
+          this.material.uniforms.uHover.value += ((this.targetH || 0) - this.material.uniforms.uHover.value) * 0.1;
+          this.renderer.render(this.scene, this.camera);
+        }
+      }
+    }
+
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('revealed'); });
+    }, { threshold: 0.1 });
+
+    async function loadArsenal() {
+      const { data, error } = await core.from('products').select('*');
+      if (error) return;
+      state.products = data || [];
+      renderArsenalGrid();
+      renderAdminInventory();
+    }
+
+    function renderArsenalGrid() {
+      const grid = document.getElementById('arsenal-grid');
+      if (!grid) return;
+      const filtered = state.products.filter(p => (p.title || '').toLowerCase().includes(state.arsenalQuery.toLowerCase()) || (p.formulation || '').toLowerCase().includes(state.arsenalQuery.toLowerCase()));
+      grid.innerHTML = filtered.length ? filtered.map(p => `
+        <article class="product-card" onclick="showDetails('${p.id}')">
+          <div class="canvas-container" data-image="${p.image_url}"></div>
+          <div class="product-meta">
+            <div>
+              <span class="category-tag">${p.category || 'UNCATEGORIZED'}</span>
+              <p style="font-size:0.6rem; opacity:0.6;">${p.formulation}</p>
+              <h3>${p.title}</h3>
+              <p>$${p.price} USD</p>
+            </div>
+            <button class="btn-raw" style="font-size:0.7rem;">VIEW SPECS</button>
+          </div>
+        </article>
+      `).join('') : `<h3 style="grid-column: span 12; padding: 5rem; opacity: 0.2;">NO MATCHING ASSETS FOUND.</h3>`;
+      document.querySelectorAll('.canvas-container').forEach(c => new BrutalShader(c, c.dataset.image));
+      document.querySelectorAll('.product-card').forEach(card => revealObserver.observe(card));
+    }
+
+    document.getElementById('arsenal-search').oninput = (e) => { state.arsenalQuery = e.target.value; renderArsenalGrid(); };
+    document.getElementById('admin-search').oninput = (e) => { state.adminQuery = e.target.value; renderAdminInventory(); };
+    document.getElementById('admin-filter-category').onchange = (e) => { state.adminCategoryFilter = e.target.value; renderAdminInventory(); };
+
+    window.showDetails = (id) => {
+      const p = state.products.find(x => x.id === id);
+      if(!p) return;
+      document.getElementById('details-container').innerHTML = `
+        <div class="details-layout">
+          <div class="details-image-box" id="detail-gl-container" data-image="${p.image_url}"></div>
+          <div class="details-content">
+            <span class="category-tag" style="width: fit-content;">${p.category || 'UNCATEGORIZED'}</span>
+            <p style="font-size: 1rem; margin-bottom: 1rem;">${p.formulation}</p>
+            <h2 class="display-text" style="font-size: clamp(3rem, 8vw, 6rem); margin-bottom: 2rem;">${p.title}</h2>
+            <p style="font-size: 1.2rem; max-width: 500px; margin-bottom: 3rem; text-transform: none; opacity: 0.8; line-height: 1.4;">ULTIMATE PERFORMANCE FORMULATION. ENGINEERED FOR SUPREMACY. NO FILLERS. NO COMPROMISE.</p>
+            <div style="display: flex; align-items: center; gap: 2rem;">
+              <h3 style="font-size: 3rem;">$${p.price}</h3>
+              <button class="btn-raw" style="font-size: 1.5rem; padding: 1.5rem 3rem;" onclick="event.stopPropagation(); acquire('${p.id}', '${p.title}', ${p.price})">ACQUIRE ASSET</button>
+            </div>
+            <button class="btn-raw" style="margin-top: 4rem; border: none; text-decoration: underline;" data-target="home">RETURN TO ARSENAL</button>
+          </div>
+        </div>
+      `;
+      switchView('details');
+      new BrutalShader(document.getElementById('detail-gl-container'), p.image_url);
+    };
+
+    window.acquire = (id, title, price) => {
+      if(!state.user) return alert("IDENTIFY YOURSELF TO ACQUIRE ASSETS.");
+      state.cart.push({id, title, price});
+      localStorage.setItem('titans_cart', JSON.stringify(state.cart));
+      document.getElementById('cart-count').innerText = state.cart.length;
+      document.body.style.background = "var(--bone)";
+      setTimeout(() => document.body.style.background = "var(--void)", 50);
+    };
+
+    function renderPayload() {
+      const dest = document.getElementById('payload-manifest');
+      let total = 0;
+      dest.innerHTML = state.cart.length === 0 ? '<p style="padding: 2rem; opacity: 0.3;">ARSENAL EMPTY</p>' : '';
+      state.cart.forEach((item, i) => {
+        total += item.price;
+        const div = document.createElement('div');
+        div.className = 'payload-item';
+        div.innerHTML = `<span>0${i+1}</span><h4>${item.title}</h4><span>$${item.price}</span><button onclick="purge(${i})" style="background:none; border:none; color:var(--blood); cursor:pointer;">[PURGE]</button>`;
+        dest.appendChild(div);
+      });
+      document.getElementById('payload-total').innerText = `$${total.toFixed(2)}`;
+    }
+
+    window.purge = (i) => {
+      state.cart.splice(i, 1);
+      localStorage.setItem('titans_cart', JSON.stringify(state.cart));
+      document.getElementById('cart-count').innerText = state.cart.length;
+      renderPayload();
+    };
+
+    // --- UI AUTH ---
+    function updateAuthUI(user) {
+      if (user) {
+        document.body.classList.remove('is-logged-out');
+        document.body.classList.add('is-logged-in');
+        state.user = user;
+        checkAdmin(user);
+      } else {
+        document.body.classList.remove('is-logged-in');
+        document.body.classList.add('is-logged-out');
+        state.user = null;
+        const adminBtn = document.getElementById('nav-admin-btn');
+        if (adminBtn) adminBtn.remove();
+      }
+    }
+
+    function checkAdmin(user) {
+      if (user && user.email === 'director@titansupps.com' && !document.getElementById('nav-admin-btn')) {
+        const btn = document.createElement('button');
+        btn.id = "nav-admin-btn"; btn.dataset.target = "admin"; btn.innerText = "DIRECTORATE";
+        btn.classList.add('auth-only'); // Importante: añadir esta clase
+        document.getElementById('nav-actions').appendChild(btn);
+      }
+    }
+
+    window.handleLogout = async () => {
+      await core.auth.signOut();
+      alert("SESSION TERMINATED.");
+      updateAuthUI(null);
+      switchView('home');
+    };
+
+    document.getElementById('nav-logout-btn').onclick = handleLogout;
+
+    function renderAdminInventory() {
+      const list = document.getElementById('admin-inventory-list');
+      if (!list) return;
+      const filtered = state.products.filter(p => {
+        const matchesSearch = (p.title || '').toLowerCase().includes(state.adminQuery.toLowerCase()) || (p.formulation || '').toLowerCase().includes(state.adminQuery.toLowerCase());
+        const matchesCategory = state.adminCategoryFilter === 'ALL' || (p.category || 'UNCATEGORIZED') === state.adminCategoryFilter;
+        return matchesSearch && matchesCategory;
+      });
+      list.innerHTML = filtered.map((p, i) => `
+        <div class="admin-list-item">
+          <span>0${i+1}</span>
+          <span style="font-weight:700;">${p.title}</span>
+          <span style="opacity:0.6; font-size:0.7rem;">${p.formulation}</span>
+          <span style="font-weight:700; color:var(--bone); font-size:0.6rem;">[${p.category || 'NONE'}]</span>
+          <span>$${p.price}</span>
+          <div style="display:flex; gap:1rem; justify-content:flex-end;">
+            <button onclick="prepareEdit('${p.id}')" style="background:none; border:none; color:var(--bone); cursor:pointer; text-decoration:underline;">[MODIFY]</button>
+            <button onclick="executePurge('${p.id}')" style="background:none; border:none; color:var(--blood); cursor:pointer; text-decoration:underline;">[PURGE]</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    window.executePurge = async (id) => {
+      if (!confirm("CONFIRM ASSET DESTRUCTION?")) return;
+      const { error } = await core.from('products').delete().eq('id', id);
+      if (!error) { alert("ASSET PURGED."); await loadArsenal(); } else alert("PURGE FAILED: " + error.message);
+    };
+
+    window.prepareEdit = (id) => {
+      const p = state.products.find(x => x.id === id);
+      if (!p) return;
+      state.editingId = id;
+      document.getElementById('p-title').value = p.title;
+      document.getElementById('p-form').value = p.formulation;
+      document.getElementById('p-price').value = p.price;
+      document.getElementById('p-image').value = p.image_url;
+      document.getElementById('p-category').value = p.category || 'UNCATEGORIZED';
+      document.getElementById('admin-form-mode').innerText = "MODE: MODIFYING ASSET // ID: " + id;
+      document.getElementById('admin-submit-btn').innerText = "UPDATE ASSET";
+      document.getElementById('admin-cancel-btn').style.display = "inline-block";
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    document.getElementById('admin-cancel-btn').onclick = () => {
+      state.editingId = null;
+      document.getElementById('admin-create-form').reset();
+      document.getElementById('admin-form-mode').innerText = "MODE: NEW ASSET INJECTION";
+      document.getElementById('admin-submit-btn').innerText = "EXECUTE INJECTION";
+      document.getElementById('admin-cancel-btn').style.display = "none";
+    };
+
+    window.onload = async () => {
+      const h = document.getElementById('hero-title');
+      if (h) {
+        const words = h.innerText.split(' '); h.innerHTML = '';
+        words.forEach((w, i) => { h.innerHTML += `<span class="line-wrapper"><span class="line-text" style="transition-delay:${i*0.1}s">${w}</span></span> `; });
+        setTimeout(() => document.querySelectorAll('.line-text').forEach(l => l.classList.add('reveal')), 100);
+      }
+      core.auth.onAuthStateChanged((event, session) => {
+        updateAuthUI(session ? session.user : null);
+        if (event === "PASSWORD_RECOVERY") switchView('reset');
+      });
+      const { data: { session } } = await core.auth.getSession();
+      updateAuthUI(session ? session.user : null);
+      loadArsenal();
+      document.getElementById('cart-count').innerText = state.cart.length;
+    };
+
+    document.getElementById('auth-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const { data, error } = await core.auth.signInWithPassword({ email: document.getElementById('auth-email-input').value, password: document.getElementById('auth-pwd-input').value });
+      if (!error) { updateAuthUI(data.user); switchView('home'); } else alert(error.message);
+    };
+
+    document.getElementById('admin-create-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const product = { title: document.getElementById('p-title').value, formulation: document.getElementById('p-form').value, price: parseFloat(document.getElementById('p-price').value), image_url: document.getElementById('p-image').value, category: document.getElementById('p-category').value };
+      if (state.editingId) {
+        const { error } = await core.from('products').update(product).eq('id', state.editingId);
+        if (!error) { alert("ASSET MODIFIED."); document.getElementById('admin-cancel-btn').click(); await loadArsenal(); } else alert("UPDATE FAILED: " + error.message);
+      } else {
+        const { error } = await core.from('products').insert([product]);
+        if (!error) { alert("ARSENAL EXPANDED"); e.target.reset(); await loadArsenal(); } else alert("INJECTION FAILED: " + error.message);
+      }
+    };
+  </script>
+</body>
+</html>
