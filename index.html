@@ -132,7 +132,7 @@
       padding: 1rem 0; width: 100%; margin-bottom: 2rem; border-radius: 0; outline: none;
     }
 
-    /* ESTILO PARA SELECTOR DE CATEGORÍAS */
+    /* ESTILO PARA SELECTOR DE CATEGORÍAS (FIX) */
     select.input-raw {
       font-size: 1.2rem;
       cursor: pointer;
@@ -143,11 +143,14 @@
       background-size: 1em;
       padding-right: 3rem;
       background-color: var(--void);
+      color: var(--bone);
+      border-radius: 0;
     }
 
     select option {
       background-color: var(--void);
       color: var(--bone);
+      padding: 1.5rem;
     }
 
     .payload-item {
@@ -615,7 +618,8 @@
         setTimeout(() => document.querySelectorAll('.line-text').forEach(l => l.classList.add('reveal')), 100);
       }
       
-      core.auth.onAuthStateChanged((event, session) => {
+      // FIX: onAuthStateChange (v2 syntax corregida)
+      core.auth.onAuthStateChange((event, session) => {
         updateAuthUI(session ? session.user : null);
         if (event === "PASSWORD_RECOVERY") switchView('reset');
       });
