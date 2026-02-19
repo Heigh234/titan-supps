@@ -67,7 +67,6 @@
       background: none; border: none; color: var(--bone);
       font-family: inherit; font-weight: 700; text-transform: uppercase;
       font-size: 0.8rem; letter-spacing: 0.1em;
-      cursor: crosshair;
     }
 
     nav button:hover { color: var(--void); background: var(--bone); }
@@ -133,6 +132,24 @@
       padding: 1rem 0; width: 100%; margin-bottom: 2rem; border-radius: 0; outline: none;
     }
 
+    /* ESTILO PARA SELECTOR DE CATEGORÍAS */
+    select.input-raw {
+      font-size: 1.2rem;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 1rem center;
+      background-size: 1em;
+      padding-right: 3rem;
+      background-color: var(--void);
+    }
+
+    select option {
+      background-color: var(--void);
+      color: var(--bone);
+    }
+
     .payload-item {
       display: grid; grid-template-columns: 1fr 4fr 2fr 1fr;
       padding: 2rem 0; border-bottom: 1px solid rgba(234, 234, 234, 0.2);
@@ -148,7 +165,7 @@
       background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     }
 
-    /* VISIBILIDAD BASADA EN AUTH (REFORZADA) */
+    /* VISIBILIDAD BASADA EN AUTH */
     .auth-only { display: none !important; }
     body.is-logged-in .auth-only { display: inline-block !important; }
     body.is-logged-in .guest-only { display: none !important; }
@@ -190,7 +207,7 @@
     </div>
   </nav>
 
-  <!-- VISTAS -->
+  <!-- HOME VIEW -->
   <main id="view-home" class="view active">
     <header style="padding: 15vh 2rem 5vh 2rem;">
       <h1 class="hero-text" id="hero-title">ELEVATION THROUGH DISCIPLINE.</h1>
@@ -265,7 +282,7 @@
         <input type="number" id="p-price" class="input-raw" placeholder="EXCHANGE VALUE" step="0.01" required>
         <input type="text" id="p-image" class="input-raw" placeholder="ASSET URL (IMG)" required>
         <label style="font-size: 0.7rem; opacity: 0.5; display: block; margin-bottom: 0.5rem;">CATEGORY ALLOCATION</label>
-        <select id="p-category" class="input-raw" style="font-size: 1.5rem;">
+        <select id="p-category" class="input-raw">
           <option value="PROTEINS">PROTEINS</option>
           <option value="AMINO ACIDS">AMINO ACIDS</option>
           <option value="PRE-WORKOUTS">PRE-WORKOUTS</option>
@@ -309,7 +326,8 @@
       editingId: null,
       arsenalQuery: '',
       adminQuery: '',
-      adminCategoryFilter: 'ALL'
+      adminCategoryFilter: 'ALL',
+      activeShaders: [] 
     };
 
     // --- ENRUTADOR ---
@@ -325,7 +343,13 @@
       }
     });
 
+    function cleanupWebGL() {
+      state.activeShaders.forEach(s => s.dispose());
+      state.activeShaders = [];
+    }
+
     function switchView(target) {
+      cleanupWebGL(); 
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
       const view = document.getElementById(`view-${target}`);
       if (view) {
@@ -337,13 +361,13 @@
       }
     }
 
-    // --- WEBGL ENGINE ---
+    // --- MOTOR WEBGL ---
     class BrutalShader {
       constructor(container, url) {
         this.container = container; this.url = url;
         this.scene = new THREE.Scene();
         this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-        this.renderer = new THREE.WebGLRenderer({ alpha: true });
+        this.renderer = new THREE.WebGLRenderer({ alpha: true, antialias: false });
         this.renderer.setSize(container.offsetWidth, container.offsetHeight);
         container.appendChild(this.renderer.domElement);
         this.loader = new THREE.TextureLoader();
@@ -376,11 +400,26 @@
         });
       }
       animate() {
-        requestAnimationFrame(() => this.animate());
+        if(!this.renderer) return;
+        this.frameId = requestAnimationFrame(() => this.animate());
         if(this.material) {
           this.material.uniforms.uTime.value += 0.05;
           this.material.uniforms.uHover.value += ((this.targetH || 0) - this.material.uniforms.uHover.value) * 0.1;
           this.renderer.render(this.scene, this.camera);
+        }
+      }
+      dispose() {
+        cancelAnimationFrame(this.frameId);
+        if(this.renderer) {
+          this.renderer.dispose();
+          this.renderer.forceContextLoss();
+          this.renderer.domElement.remove();
+          this.renderer = null;
+        }
+        if(this.material) this.material.dispose();
+        if(this.mesh) {
+            this.mesh.geometry.dispose();
+            this.mesh.material.dispose();
         }
       }
     }
@@ -400,6 +439,7 @@
     function renderArsenalGrid() {
       const grid = document.getElementById('arsenal-grid');
       if (!grid) return;
+      cleanupWebGL(); 
       const filtered = state.products.filter(p => (p.title || '').toLowerCase().includes(state.arsenalQuery.toLowerCase()) || (p.formulation || '').toLowerCase().includes(state.arsenalQuery.toLowerCase()));
       grid.innerHTML = filtered.length ? filtered.map(p => `
         <article class="product-card" onclick="showDetails('${p.id}')">
@@ -415,7 +455,11 @@
           </div>
         </article>
       `).join('') : `<h3 style="grid-column: span 12; padding: 5rem; opacity: 0.2;">NO MATCHING ASSETS FOUND.</h3>`;
-      document.querySelectorAll('.canvas-container').forEach(c => new BrutalShader(c, c.dataset.image));
+      
+      document.querySelectorAll('.canvas-container').forEach(c => {
+        const s = new BrutalShader(c, c.dataset.image);
+        state.activeShaders.push(s);
+      });
       document.querySelectorAll('.product-card').forEach(card => revealObserver.observe(card));
     }
 
@@ -426,6 +470,7 @@
     window.showDetails = (id) => {
       const p = state.products.find(x => x.id === id);
       if(!p) return;
+      cleanupWebGL();
       document.getElementById('details-container').innerHTML = `
         <div class="details-layout">
           <div class="details-image-box" id="detail-gl-container" data-image="${p.image_url}"></div>
@@ -443,7 +488,8 @@
         </div>
       `;
       switchView('details');
-      new BrutalShader(document.getElementById('detail-gl-container'), p.image_url);
+      const s = new BrutalShader(document.getElementById('detail-gl-container'), p.image_url);
+      state.activeShaders.push(s);
     };
 
     window.acquire = (id, title, price) => {
@@ -476,7 +522,6 @@
       renderPayload();
     };
 
-    // --- UI AUTH ---
     function updateAuthUI(user) {
       if (user) {
         document.body.classList.remove('is-logged-out');
@@ -496,7 +541,7 @@
       if (user && user.email === 'director@titansupps.com' && !document.getElementById('nav-admin-btn')) {
         const btn = document.createElement('button');
         btn.id = "nav-admin-btn"; btn.dataset.target = "admin"; btn.innerText = "DIRECTORATE";
-        btn.classList.add('auth-only'); // Importante: añadir esta clase
+        btn.classList.add('auth-only'); 
         document.getElementById('nav-actions').appendChild(btn);
       }
     }
@@ -536,7 +581,7 @@
     window.executePurge = async (id) => {
       if (!confirm("CONFIRM ASSET DESTRUCTION?")) return;
       const { error } = await core.from('products').delete().eq('id', id);
-      if (!error) { alert("ASSET PURGED."); await loadArsenal(); } else alert("PURGE FAILED: " + error.message);
+      if (!error) { alert("ASSET PURGED."); await loadArsenal(); }
     };
 
     window.prepareEdit = (id) => {
@@ -569,10 +614,12 @@
         words.forEach((w, i) => { h.innerHTML += `<span class="line-wrapper"><span class="line-text" style="transition-delay:${i*0.1}s">${w}</span></span> `; });
         setTimeout(() => document.querySelectorAll('.line-text').forEach(l => l.classList.add('reveal')), 100);
       }
+      
       core.auth.onAuthStateChanged((event, session) => {
         updateAuthUI(session ? session.user : null);
         if (event === "PASSWORD_RECOVERY") switchView('reset');
       });
+      
       const { data: { session } } = await core.auth.getSession();
       updateAuthUI(session ? session.user : null);
       loadArsenal();
@@ -590,10 +637,10 @@
       const product = { title: document.getElementById('p-title').value, formulation: document.getElementById('p-form').value, price: parseFloat(document.getElementById('p-price').value), image_url: document.getElementById('p-image').value, category: document.getElementById('p-category').value };
       if (state.editingId) {
         const { error } = await core.from('products').update(product).eq('id', state.editingId);
-        if (!error) { alert("ASSET MODIFIED."); document.getElementById('admin-cancel-btn').click(); await loadArsenal(); } else alert("UPDATE FAILED: " + error.message);
+        if (!error) { alert("ASSET MODIFIED."); document.getElementById('admin-cancel-btn').click(); await loadArsenal(); }
       } else {
         const { error } = await core.from('products').insert([product]);
-        if (!error) { alert("ARSENAL EXPANDED"); e.target.reset(); await loadArsenal(); } else alert("INJECTION FAILED: " + error.message);
+        if (!error) { alert("ARSENAL EXPANDIDO"); e.target.reset(); await loadArsenal(); }
       }
     };
   </script>
